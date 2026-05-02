@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NetWatch — Network Monitor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@300;400;500;600;700;800&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --purple-deep:   #5B21B6;
+  --purple-mid:    #7C3AED;
+  --purple-bright: #8B5CF6;
+  --purple-light:  #A78BFA;
+  --purple-pale:   #EDE9FE;
+  --purple-ghost:  #F5F3FF;
+  --white:         #FFFFFF;
+  --surface:       #FFFFFF;
+  --border:        rgba(139,92,246,0.12);
+  --text-dark:     #1E1B4B;
+  --text-muted:    #7C6FA0;
+  --text-light:    #A89CC8;
+  --green:         #10B981;
+  --yellow:        #F59E0B;
+  --shadow-card:   0 4px 24px rgba(109,40,217,0.10);
+  --shadow-btn:    0 4px 16px rgba(109,40,217,0.35);
+  --shadow-deep:   0 8px 40px rgba(109,40,217,0.18);
+  --radius:  18px;
+  --radius-sm: 12px;
+  --font:   'Nunito', sans-serif;
+  --font2:  'DM Sans', sans-serif;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: var(--font); background: var(--purple-ghost); min-height: 100vh; color: var(--text-dark); overflow-x: hidden; }
+
+header {
+  background: linear-gradient(135deg, var(--purple-deep) 0%, var(--purple-mid) 55%, var(--purple-bright) 100%);
+  padding: 0 32px;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 4px 32px rgba(91,33,182,0.30);
+}
+header::after {
+  content: '';
+  position: absolute;
+  bottom: -1px; left: 0; right: 0;
+  height: 40px;
+  background: var(--purple-ghost);
+  clip-path: ellipse(55% 100% at 50% 100%);
+}
+header::before {
+  content: '';
+  position: absolute;
+  top: -70px; right: -70px;
+  width: 280px; height: 280px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.07);
+  pointer-events: none;
+}
+.header-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 0 52px;
+  position: relative;
+  z-index: 1;
+}
+.logo { display: flex; align-items: center; gap: 12px; }
+.logo-icon {
+  width: 44px; height: 44px;
+  background: rgba(255,255,255,0.18);
+  border-radius: 14px;
+  display: flex; align-items: center; justify-content: center;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255,255,255,0.25);
+  font-size: 20px;
+}
+.logo-name { font-size: 22px; font-weight: 800; color: white; letter-spacing: -0.3px; }
+.logo-name span { opacity: 0.65; font-weight: 400; }
+.header-right { display: flex; align-items: center; gap: 12px; }
+.pill {
+  display: flex; align-items: center; gap: 7px;
+  background: rgba(255,255,255,0.15);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255,255,255,0.2);
+  border-radius: 50px;
+  padding: 7px 16px;
+  font-size: 13px; font-weight: 600;
+  color: rgba(255,255,255,0.9);
+}
+.dot { width: 8px; height: 8px; border-radius: 50%; background: rgba(255,255,255,0.4); transition: all .3s; }
+.dot.live { background: #6EE7B7; box-shadow: 0 0 0 3px rgba(110,231,183,.3); animation: blink 1.4s infinite; }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+main { padding: 24px 28px 40px; max-width: 1400px; margin: 0 auto; }
+
+.stats-row {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 14px;
+  margin-bottom: 20px;
+  margin-top: -8px;
+}
+.stat-card {
+  background: var(--surface);
+  border-radius: var(--radius);
+  padding: 18px 20px;
+  box-shadow: var(--shadow-card);
+  border: 1px solid var(--border);
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.stat-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-deep); }
+.stat-card::before {
+  content: ''; position: absolute;
+  top: 0; left: 0; right: 0; height: 3px;
+  background: linear-gradient(90deg, var(--purple-mid), var(--purple-light));
+  border-radius: var(--radius) var(--radius) 0 0;
+}
+.stat-card.tcp::before  { background: linear-gradient(90deg, #7C3AED, #A78BFA); }
+.stat-card.udp::before  { background: linear-gradient(90deg, #10B981, #6EE7B7); }
+.stat-card.icmp::before { background: linear-gradient(90deg, #F59E0B, #FCD34D); }
+.stat-card.avg::before  { background: linear-gradient(90deg, #EC4899, #F9A8D4); }
+.stat-ico {
+  width: 36px; height: 36px;
+  border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  margin-bottom: 10px;
+  font-size: 16px;
+  background: var(--purple-pale);
+}
+.stat-card.udp  .stat-ico { background: #D1FAE5; }
+.stat-card.icmp .stat-ico { background: #FEF3C7; }
+.stat-card.avg  .stat-ico { background: #FCE7F3; }
+.stat-lbl { font-size: 11px; font-weight: 700; letter-spacing: .8px; text-transform: uppercase; color: var(--text-muted); margin-bottom: 4px; }
+.stat-val { font-size: 28px; font-weight: 800; color: var(--text-dark); line-height: 1; font-family: var(--font2); }
+.stat-sub { font-size: 11px; color: var(--text-light); margin-top: 3px; }
+
+.ctrl-card {
+  background: var(--surface);
+  border-radius: var(--radius);
+  padding: 20px 24px;
+  margin-bottom: 20px;
+  box-shadow: var(--shadow-card);
+  border: 1px solid var(--border);
+  display: flex; gap: 16px; align-items: flex-end; flex-wrap: wrap;
+}
+.ctrl-grp { display: flex; flex-direction: column; gap: 7px; flex: 1; min-width: 140px; }
+label { font-size: 11px; font-weight: 700; letter-spacing: .8px; text-transform: uppercase; color: var(--text-muted); }
+select, input[type=text] {
+  background: var(--purple-ghost); border: 1.5px solid var(--border);
+  color: var(--text-dark); font-family: var(--font); font-size: 13px; font-weight: 500;
+  padding: 10px 14px; border-radius: var(--radius-sm); outline: none; transition: all .2s;
+}
+select:focus, input[type=text]:focus { border-color: var(--purple-bright); box-shadow: 0 0 0 3px rgba(139,92,246,.12); background: white; }
+::placeholder { color: var(--text-light); }
+.btn-grp { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-left: auto; }
+button { font-family: var(--font); font-weight: 700; font-size: 13px; padding: 10px 22px; border: none; border-radius: 50px; cursor: pointer; transition: all .2s; white-space: nowrap; }
+button:hover:not(:disabled) { transform: translateY(-1px); }
+button:active:not(:disabled) { transform: scale(.98); }
+button:disabled { opacity: .4; cursor: not-allowed; }
+#btn-start { background: linear-gradient(135deg, var(--purple-mid), var(--purple-bright)); color: white; box-shadow: var(--shadow-btn); padding: 10px 28px; }
+#btn-start:hover:not(:disabled) { box-shadow: 0 6px 22px rgba(109,40,217,.45); }
+#btn-stop  { background: linear-gradient(135deg, #EF4444, #F87171); color: white; box-shadow: 0 4px 16px rgba(239,68,68,.3); }
+#btn-filter { background: var(--purple-pale); color: var(--purple-mid); border: 1.5px solid rgba(139,92,246,.2); }
+#btn-filter:hover:not(:disabled) { background: var(--purple-light); color: white; }
+#btn-reset  { background: white; color: var(--text-muted); border: 1.5px solid var(--border); }
+#btn-reset:hover:not(:disabled)  { border-color: var(--purple-light); color: var(--purple-mid); }
+
+/* ─── Mode Toggle ─────────────────────────────────────────────────────────── */
+.mode-toggle { display: flex; align-items: center; gap: 8px; }
+.toggle-switch {
+  width: 50px; height: 28px;
+  background: var(--purple-ghost);
+  border: 1.5px solid var(--border);
+  border-radius: 50px;
+  position: relative;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+.toggle-switch.active { background: #D1FAE5; border-color: #10B981; }
+.toggle-slider {
+  width: 24px; height: 24px;
+  background: white;
+  border-radius: 50%;
+  position: absolute;
+  top: 1px; left: 1px;
+  transition: left 0.3s;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+.toggle-switch.active .toggle-slider { left: 25px; }
+.mode-label { font-size: 12px; font-weight: 600; color: var(--text-dark); white-space: nowrap; }
+
+.grid { display: grid; grid-template-columns: 1fr 300px; gap: 20px; align-items: start; }
+
+.card { background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow-card); border: 1px solid var(--border); overflow: hidden; }
+.card-hdr {
+  padding: 16px 22px; border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+  background: linear-gradient(135deg, rgba(237,233,254,.5), rgba(245,243,255,.3));
+}
+.card-ttl { font-size: 13px; font-weight: 800; letter-spacing: .4px; color: var(--purple-deep); display: flex; align-items: center; gap: 8px; }
+.card-ttl .ico { width: 28px; height: 28px; background: var(--purple-pale); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 13px; }
+.card-badge { background: var(--purple-pale); color: var(--purple-mid); border-radius: 50px; padding: 3px 12px; font-size: 11px; font-weight: 700; }
+
+.tbl-wrap { overflow-x: auto; max-height: 440px; overflow-y: auto; }
+.tbl-wrap::-webkit-scrollbar { width: 5px; height: 5px; }
+.tbl-wrap::-webkit-scrollbar-track { background: var(--purple-ghost); }
+.tbl-wrap::-webkit-scrollbar-thumb { background: var(--purple-pale); border-radius: 4px; }
+table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+thead th {
+  position: sticky; top: 0;
+  background: linear-gradient(135deg, #F5F3FF, #EDE9FE);
+  padding: 11px 16px; text-align: left;
+  font-size: 10px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase;
+  color: var(--purple-mid); border-bottom: 1px solid var(--border); white-space: nowrap;
+}
+tbody tr { border-bottom: 1px solid rgba(237,233,254,.6); transition: background .15s; }
+tbody tr:hover { background: var(--purple-ghost); }
+tbody td { padding: 10px 16px; color: var(--text-dark); white-space: nowrap; font-weight: 500; }
+tbody td:first-child { color: var(--text-light); font-size: 11px; }
+
+.chip { display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 50px; font-size: 10px; font-weight: 800; letter-spacing: .5px; }
+.chip-tcp  { background: #EDE9FE; color: #6D28D9; }
+.chip-udp  { background: #D1FAE5; color: #065F46; }
+.chip-icmp { background: #FEF3C7; color: #92400E; }
+.svc-chip  { display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 50px; background: var(--purple-ghost); color: var(--purple-mid); font-size: 10px; font-weight: 700; border: 1px solid rgba(139,92,246,.15); }
+
+.empty { padding: 56px 20px; text-align: center; }
+.empty-circ { width: 64px; height: 64px; background: linear-gradient(135deg, var(--purple-pale), #EDE9FE); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 14px; font-size: 26px; }
+.empty p { color: var(--text-muted); font-size: 13px; font-weight: 500; }
+
+.right-col { display: flex; flex-direction: column; gap: 16px; }
+
+.proto-sec { padding: 18px 20px; }
+.proto-row { margin-bottom: 14px; }
+.proto-row:last-child { margin-bottom: 0; }
+.proto-meta { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+.proto-nm { font-size: 12px; font-weight: 700; color: var(--text-dark); }
+.proto-ct { font-size: 12px; font-weight: 700; color: var(--text-muted); }
+.bar-track { height: 8px; background: var(--purple-ghost); border-radius: 50px; overflow: hidden; }
+.bar-fill { height: 100%; border-radius: 50px; transition: width .6s cubic-bezier(.4,0,.2,1); min-width: 0; }
+.bar-fill.tcp  { background: linear-gradient(90deg, #7C3AED, #A78BFA); }
+.bar-fill.udp  { background: linear-gradient(90deg, #10B981, #6EE7B7); }
+.bar-fill.icmp { background: linear-gradient(90deg, #F59E0B, #FCD34D); }
+
+.ip-list { padding: 0 20px 16px; }
+.ip-row { display: flex; align-items: center; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border); }
+.ip-row:last-child { border-bottom: none; }
+.ip-addr { font-size: 12px; font-weight: 600; color: var(--text-dark); font-family: var(--font2); }
+.ip-badge { background: var(--purple-pale); color: var(--purple-mid); border-radius: 50px; padding: 2px 10px; font-size: 11px; font-weight: 700; }
+
+.log-scroll { max-height: 200px; overflow-y: auto; padding: 12px 16px; font-family: var(--font2); font-size: 11px; }
+.log-scroll::-webkit-scrollbar { width: 4px; }
+.log-scroll::-webkit-scrollbar-thumb { background: var(--purple-pale); }
+.log-line { padding: 4px 0; color: var(--text-muted); border-bottom: 1px solid rgba(237,233,254,.4); line-height: 1.5; }
+.log-line:last-child { border-bottom: none; }
+.log-line.fresh { color: var(--purple-mid); font-weight: 600; }
+.log-ts { color: var(--purple-light); }
+
+footer { text-align: center; padding: 24px; font-size: 12px; color: var(--text-light); font-weight: 500; }
+footer span { color: var(--purple-bright); }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-inner">
+    <div class="logo">
+      <div class="logo-icon">🛡️</div>
+      <div class="logo-name">Net<span>Watch</span></div>
+    </div>
+    <div class="header-right">
+      <div class="pill"><div class="dot" id="status-dot"></div><span id="status-text">Idle</span></div>
+      <div class="pill">📦 <span id="pkt-count">0</span> packets</div>
+    </div>
+  </div>
+</header>
+
+<main>
+  <div class="stats-row">
+    <div class="stat-card">
+      <div class="stat-ico">📊</div>
+      <div class="stat-lbl">Total Packets</div>
+      <div class="stat-val" id="s-total">0</div>
+      <div class="stat-sub">captured</div>
+    </div>
+    <div class="stat-card tcp">
+      <div class="stat-ico">🔵</div>
+      <div class="stat-lbl">TCP</div>
+      <div class="stat-val" id="s-tcp">0</div>
+      <div class="stat-sub">packets</div>
+    </div>
+    <div class="stat-card udp">
+      <div class="stat-ico">🟢</div>
+      <div class="stat-lbl">UDP</div>
+      <div class="stat-val" id="s-udp">0</div>
+      <div class="stat-sub">packets</div>
+    </div>
+    <div class="stat-card icmp">
+      <div class="stat-ico">🟡</div>
+      <div class="stat-lbl">ICMP</div>
+      <div class="stat-val" id="s-icmp">0</div>
+      <div class="stat-sub">packets</div>
+    </div>
+    <div class="stat-card avg">
+      <div class="stat-ico">📏</div>
+      <div class="stat-lbl">Avg Size</div>
+      <div class="stat-val" id="s-avg">0</div>
+      <div class="stat-sub">bytes</div>
+    </div>
+  </div>
+
+  <div class="ctrl-card">
+    <div class="ctrl-grp">
+      <label>Protocol</label>
+      <select id="f-protocol">
+        <option value="">All Protocols</option>
+        <option value="TCP">TCP</option>
+        <option value="UDP">UDP</option>
+        <option value="ICMP">ICMP</option>
+      </select>
+    </div>
+    <div class="ctrl-grp">
+      <label>Source IP</label>
+      <input type="text" id="f-src" placeholder="e.g. 192.168.1.5">
+    </div>
+    <div class="ctrl-grp">
+      <label>Destination IP</label>
+      <input type="text" id="f-dst" placeholder="e.g. 8.8.8.8">
+    </div>
+    <div class="ctrl-grp" style="flex-direction: row; align-items: center; gap: 12px; flex: 0; min-width: auto; margin-left: auto;">
+      <label style="margin: 0;">Capture Mode</label>
+      <div class="mode-toggle" id="mode-toggle" onclick="toggleMode()">
+        <div class="toggle-switch" id="toggle-switch">
+          <div class="toggle-slider"></div>
+        </div>
+        <span class="mode-label" id="mode-label">CSV</span>
+      </div>
+    </div>
+    <div class="btn-grp">
+      <button id="btn-filter" onclick="applyFilter()">🔍 Filter</button>
+      <button id="btn-reset"  onclick="resetFilter()">✕ Clear</button>
+      <button id="btn-start"  onclick="startMonitoring()">▶ Start</button>
+      <button id="btn-stop"   onclick="stopMonitoring()" disabled>■ Stop</button>
+    </div>
+  </div>
+
+  <div class="grid">
+    <div class="card">
+      <div class="card-hdr">
+        <div class="card-ttl"><div class="ico">📡</div>Packet Capture</div>
+        <div class="card-badge" id="tbl-count">0 records</div>
+      </div>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>#</th><th>Time</th><th>Source IP</th><th>Destination IP</th><th>Protocol</th><th>Src Port</th><th>Dst Port</th><th>Service</th><th>Size (B)</th></tr></thead>
+          <tbody id="tbl-body">
+            <tr><td colspan="9">
+              <div class="empty">
+                <div class="empty-circ">📡</div>
+                <p>Press <strong>Start</strong> to begin monitoring</p>
+              </div>
+            </td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="right-col">
+      <div class="card">
+        <div class="card-hdr"><div class="card-ttl"><div class="ico">📊</div>Protocol Split</div></div>
+        <div class="proto-sec">
+          <div class="proto-row">
+            <div class="proto-meta"><span class="proto-nm">TCP</span><span class="proto-ct" id="pc-tcp">0</span></div>
+            <div class="bar-track"><div class="bar-fill tcp" id="bar-tcp" style="width:0%"></div></div>
+          </div>
+          <div class="proto-row">
+            <div class="proto-meta"><span class="proto-nm">UDP</span><span class="proto-ct" id="pc-udp">0</span></div>
+            <div class="bar-track"><div class="bar-fill udp" id="bar-udp" style="width:0%"></div></div>
+          </div>
+          <div class="proto-row">
+            <div class="proto-meta"><span class="proto-nm">ICMP</span><span class="proto-ct" id="pc-icmp">0</span></div>
+            <div class="bar-track"><div class="bar-fill icmp" id="bar-icmp" style="width:0%"></div></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-hdr"><div class="card-ttl"><div class="ico">🌐</div>Top Sources</div></div>
+        <div class="ip-list" id="top-src">
+          <div class="empty" style="padding:20px"><p>No data yet</p></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-hdr">
+          <div class="card-ttl"><div class="ico">📋</div>Event Log</div>
+          <div class="card-badge" id="log-count">0</div>
+        </div>
+        <div class="log-scroll" id="log-body">
+          <div class="log-line" style="color:#C4B5FD">Waiting for events...</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<footer>NetWatch v1.0 &nbsp;·&nbsp; Network Traffic Monitoring Platform &nbsp;·&nbsp; Built with <span>♥</span> using Flask + HTML</footer>
+
+<script>
+let pollTimer = null;
+let filters = { protocol: '', src_ip: '', dst_ip: '' };
+let currentMode = 'simulation';  // Track current mode
+
+function toggleMode() {
+  if (document.getElementById('btn-start').disabled) {
+    alert('Cannot switch mode while monitoring is active. Press Stop first.');
+    return;
+  }
+  
+  const newMode = currentMode === 'simulation' ? 'live' : 'simulation';
+  
+  fetch('/api/set-mode', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ mode: newMode })
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.status === 'ok') {
+      currentMode = newMode;
+      updateModeDisplay();
+      fetchLogs();
+    } else {
+      alert('Error: ' + data.message);
+    }
+  })
+  .catch(err => {
+    console.error('Mode switch failed:', err);
+    alert('Failed to switch mode');
+  });
+}
+
+function updateModeDisplay() {
+  const toggle = document.getElementById('toggle-switch');
+  const label = document.getElementById('mode-label');
+  
+  if (currentMode === 'live') {
+    toggle.classList.add('active');
+    label.textContent = 'Live';
+  } else {
+    toggle.classList.remove('active');
+    label.textContent = 'CSV';
+  }
+}
+
+function startMonitoring() {
+  fetch('/api/start', { method: 'POST' }).then(r => r.json()).then(() => {
+    document.getElementById('btn-start').disabled = true;
+    document.getElementById('btn-stop').disabled  = false;
+    setLive(true);
+    pollTimer = setInterval(() => { fetchData(); fetchLogs(); }, 1000);
+  });
+}
+function stopMonitoring() {
+  fetch('/api/stop', { method: 'POST' }).then(r => r.json()).then(() => {
+    document.getElementById('btn-start').disabled = false;
+    document.getElementById('btn-stop').disabled  = true;
+    setLive(false);
+    clearInterval(pollTimer); pollTimer = null;
+    fetchData(); fetchLogs();
+  });
+}
+function applyFilter() {
+  filters.protocol = document.getElementById('f-protocol').value;
+  filters.src_ip   = document.getElementById('f-src').value.trim();
+  filters.dst_ip   = document.getElementById('f-dst').value.trim();
+  fetchData();
+}
+function resetFilter() {
+  document.getElementById('f-protocol').value = '';
+  document.getElementById('f-src').value = '';
+  document.getElementById('f-dst').value = '';
+  filters = { protocol: '', src_ip: '', dst_ip: '' };
+  fetchData();
+}
+function fetchData() {
+  const q = new URLSearchParams(filters);
+  fetch('/api/packets?' + q).then(r => r.json()).then(d => {
+    renderTable(d.packets);
+    renderStats(d.stats);
+    document.getElementById('pkt-count').textContent = d.packets.length;
+  });
+}
+function fetchLogs() {
+  fetch('/api/logs').then(r => r.json()).then(d => renderLogs(d.logs));
+}
+function renderTable(pkts) {
+  const tbody = document.getElementById('tbl-body');
+  document.getElementById('tbl-count').textContent = pkts.length + ' records';
+  if (!pkts.length) {
+    tbody.innerHTML = '<tr><td colspan="9"><div class="empty"><div class="empty-circ">🔍</div><p>No packets match the current filter</p></div></td></tr>';
+    return;
+  }
+  tbody.innerHTML = [...pkts].reverse().map(p =>
+    '<tr>' +
+    '<td>' + p.id + '</td>' +
+    '<td>' + p.time + '</td>' +
+    '<td><strong>' + p.source_ip + '</strong></td>' +
+    '<td>' + p.destination_ip + '</td>' +
+    '<td><span class="chip chip-' + p.protocol.toLowerCase() + '">' + p.protocol + '</span></td>' +
+    '<td>' + p.source_port + '</td>' +
+    '<td>' + p.destination_port + '</td>' +
+    '<td><span class="svc-chip">' + p.service + '</span></td>' +
+    '<td><strong>' + p.packet_size + '</strong></td>' +
+    '</tr>'
+  ).join('');
+}
+function renderStats(s) {
+  document.getElementById('s-total').textContent = s.total_packets || 0;
+  const pc = s.protocol_counts || {};
+  const tcp = pc.TCP || 0, udp = pc.UDP || 0, icmp = pc.ICMP || 0;
+  const tot = Math.max(tcp + udp + icmp, 1);
+  document.getElementById('s-tcp').textContent  = tcp;
+  document.getElementById('s-udp').textContent  = udp;
+  document.getElementById('s-icmp').textContent = icmp;
+  document.getElementById('s-avg').textContent  = s.avg_packet_size || 0;
+  document.getElementById('pc-tcp').textContent  = tcp;
+  document.getElementById('pc-udp').textContent  = udp;
+  document.getElementById('pc-icmp').textContent = icmp;
+  document.getElementById('bar-tcp').style.width  = (tcp  / tot * 100).toFixed(1) + '%';
+  document.getElementById('bar-udp').style.width  = (udp  / tot * 100).toFixed(1) + '%';
+  document.getElementById('bar-icmp').style.width = (icmp / tot * 100).toFixed(1) + '%';
+  const srcDiv = document.getElementById('top-src');
+  const srcs = s.top_sources || [];
+  if (!srcs.length) {
+    srcDiv.innerHTML = '<div class="empty" style="padding:20px"><p>No data yet</p></div>';
+  } else {
+    srcDiv.innerHTML = srcs.map(function(x) {
+      return '<div class="ip-row"><span class="ip-addr">' + x[0] + '</span><span class="ip-badge">' + x[1] + '</span></div>';
+    }).join('');
+  }
+}
+function renderLogs(logs) {
+  document.getElementById('log-count').textContent = logs.length;
+  const div = document.getElementById('log-body');
+  if (!logs.length) {
+    div.innerHTML = '<div class="log-line" style="color:#C4B5FD">No events yet...</div>';
+    return;
+  }
+  div.innerHTML = [...logs].reverse().map(function(l, i) {
+    var ts  = (l.match(/\[(\d+:\d+:\d+)\]/) || ['',''])[1];
+    var msg = l.replace(/\[\d+:\d+:\d+\]\s*/, '');
+    return '<div class="log-line ' + (i===0?'fresh':'') + '"><span class="log-ts">' + ts + '</span> ' + msg + '</div>';
+  }).join('');
+}
+function setLive(on) {
+  var dot = document.getElementById('status-dot');
+  var txt = document.getElementById('status-text');
+  dot.className = 'dot' + (on ? ' live' : '');
+  txt.textContent = on ? 'Live' : 'Idle';
+}
+fetchData(); fetchLogs();
+
+// Initialize mode display on load
+fetch('/api/status').then(r => r.json()).then(data => {
+  currentMode = data.mode;
+  updateModeDisplay();
+});
+</script>
+</body>
+</html>
